@@ -4,9 +4,8 @@
 import plac, logging
 
 # Export dependencies
-import flickrapi, urllib
+import flickrapi, urllib, io, json
 from config import api_key, api_secret, user_id as flickr_user_id
-
 
 @plac.annotations(
     # arg=(helptext, kind, abbrev, type, choices, metavar)
@@ -16,22 +15,31 @@ from config import api_key, api_secret, user_id as flickr_user_id
 )
 def main(destination, quiet=False, verbose=False):
     """Backup a users photos """
+    
     if quiet:
         logging.basicConfig(level=logging.WARN)
     elif verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
-    
+
     # Setup API and authenticate
     flickr = authenticate(flickrapi.FlickrAPI(api_key, api_secret))
     
-    for photo in flickr.walk(user_id=flickr_user_id, per_page=10, extras='original_format, url_o, date_taken'):
-        print photo.get('id')
-        # process_photo(destination, photo)
+    for photo in flickr.walk(user_id=flickr_user_id, per_page=100, extras='original_format, url_o, date_taken'):
+        write_metadata(destination, photo)
+        write_photo(destination, photo)
 
-def process_photo(destination, photo):
-    localfile = '%s/%s - %s.%s' % (destination, photo.get('id'), photo.get('title', '').replace('/', ':'), photo.get('originalformat'))
+def write_metadata(destination, photo):
+    localfile = '%s/%s.json' % (destination, photo.get('id'))
+
+    with io.open(localfile, 'w+') as metadata_file:
+        logging.warn("Writing metadata for: %s" % (photo.get('id')))
+        metadata_file.write(unicode(json.dumps(photo.attrib)))
+
+def write_photo(destination, photo):
+    localfile = '%s/%s.%s' % (destination, photo.get('id'), photo.get('originalformat'))
+    logging.warn("Writing photo for: %s" % (photo.get('id')))
     urllib.urlretrieve(photo.get('url_o'), localfile)
 
 def authenticate(flickr):
