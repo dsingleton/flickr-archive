@@ -4,7 +4,7 @@
 import plac, logging
 
 # Export dependencies
-import flickrapi, urllib, io, json
+import flickrapi, urllib, io, json, os.path
 from config import api_key, api_secret, user_id as flickr_user_id
 
 @plac.annotations(
@@ -25,22 +25,33 @@ def main(destination, quiet=False, verbose=False):
 
     # Setup API and authenticate
     flickr = authenticate(flickrapi.FlickrAPI(api_key, api_secret))
+    photos = {}
     
-    for photo in flickr.walk(user_id=flickr_user_id, per_page=100, extras='original_format, url_o, date_taken'):
-        write_metadata(destination, photo)
-        write_photo(destination, photo)
+    for photo in flickr.walk(user_id=flickr_user_id, per_page=100, extras='description, url_o, tags, date_taken, views'):
+        logging.warn("Processing photo: %s" % (photo.get('id')))
 
-def write_metadata(destination, photo):
-    localfile = '%s/%s.json' % (destination, photo.get('id'))
+        photos[photo.get('id')] = {
+            'original_url': photo.get('url_o'),
+            'title': photo.get('title'),
+            'description': photo.find('description').text,
+            'width': photo.get('width_o'),
+            'height': photo.get('height_o'),
+            'date_taken': photo.get('datetaken'),
+            'tags': photo.get('tags').split(),
+            'views': photo.get('views')
+        }
+    
+    with io.open('%s/photos.json' % (destination), 'w+') as photos_file:
+        photos_file.write(unicode(json.dumps(photos)))
 
-    with io.open(localfile, 'w+') as metadata_file:
-        logging.warn("Writing metadata for: %s" % (photo.get('id')))
-        metadata_file.write(unicode(json.dumps(photo.attrib)))
 
 def write_photo(destination, photo):
     localfile = '%s/%s.%s' % (destination, photo.get('id'), photo.get('originalformat'))
-    logging.warn("Writing photo for: %s" % (photo.get('id')))
-    urllib.urlretrieve(photo.get('url_o'), localfile)
+    if not os.path.isfile(localfile):
+        logging.warn("Writing photo for: %s" % (photo.get('id')))
+        urllib.urlretrieve(photo.get('url_o'), localfile)
+    else:
+        logging.warn("Skipping photo for: %s" % (photo.get('id')))
 
 def authenticate(flickr):
     """"Super simple Authentication
