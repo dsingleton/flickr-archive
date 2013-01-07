@@ -14,7 +14,7 @@ from config import api_key, api_secret, user_id as flickr_user_id
     fetchphotos=("Fetch the photos.", "flag", "f"),
     verbose=("Print debug messages that are probably only useful if something is going wrong.", "flag", "v"),
 )
-def main(destination, fetchphotos = False, quiet=False, verbose=False):
+def main(destination, fetchphotos=False, quiet=False, verbose=False):
     """Backup a users photos """
     
     if quiet:
@@ -26,13 +26,29 @@ def main(destination, fetchphotos = False, quiet=False, verbose=False):
 
     # Setup API and authenticate
     flickr = authenticate(flickrapi.FlickrAPI(api_key, api_secret))
-    photos = {}
+    
+    logging.warn("Fetching photoset metadata")
+    photosets = []
+    for photoset in flickr.photosets_getList(per_page=500).find('photosets').findall('photoset'):
+        logging.warn("Fetching photoset '%s'" % photoset.find('title').text)
+        photosets.append({
+            'flickrid': photoset.get('id'),
+            'title': photoset.find('title').text,
+            'description': photoset.find('description').text,
+            'date_created': photoset.get('date_create'),
+            'photos': [photo.get('id') for photo in flickr.walk_set(photoset.get('id'))]
+        })
+    
+    logging.warn("Writing photoset metadata")
+    with io.open('%s/sets.json' % (destination), 'w+') as photosets_file:
+        photosets_file.write(unicode(json.dumps(photosets)))
+
 
     logging.warn("Fetching photo metadata")
-    
+    photos = []
     for photo in flickr.walk(user_id=flickr_user_id, per_page=250, extras='description, url_o, tags, date_taken, views, original_format'):
 
-        photos[photo.get('id')] = {
+        photos.append({
             'title': photo.get('title'),
             'description': photo.find('description').text,
             'file': '%s/%s.%s' % (destination, photo.get('id'), photo.get('originalformat')),
@@ -43,18 +59,17 @@ def main(destination, fetchphotos = False, quiet=False, verbose=False):
             'tags': photo.get('tags').split(),
             'views': photo.get('views'),
             'flickr_id': photo.get('id'),
-        }
-        
+        })
     
     logging.warn("Writing photo metadata")
     with io.open('%s/photos.json' % (destination), 'w+') as photos_file:
         photos_file.write(unicode(json.dumps(photos)))
 
-    if fetchphotos:
 
+    if fetchphotos:
         from multiprocessing import Pool
         pool = Pool(5)
-        pool.map(fetch_image, photos.values())
+        pool.map(fetch_image, photos)
 
 def fetch_image(photo):
     if not os.path.isfile(photo['file']):
