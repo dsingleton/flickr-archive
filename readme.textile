@@ -1,22 +1,21 @@
-h1. Flickr Backup
+h1. Flickr Archive
 
-A script to backup my Flickr photos locally, with an eye towards importing it in to another system (like iPhoto) later.
+A tool to archive Flickr photos and metadata for a single user.
 
 It cares about:
 
-* Getting a single high quality image
-* Storing metadata, particuarly title, tags, geo
-* Keeping the local data simple, browsable and no crazy formats
+* Getting original photos out of Flickr
+* Along with meta data like titles, tags, geo, 
 
 It doesn't care about:
 
 * Comments or favourites
 * Being user friendly
 
-h2. Version One
+h2. Flickr ABCs
 
-Would ideally be able to:
+This is one of a planned set of three tools around exported flickr data.
 
-* Grab the most recent N photos
-* Include title in file name
-* Use file system folders for sets
+* A) "Flickr Archive":https://github.com/dsingleton/flickr-archive - Extracts photos and metadata from Flickr in to an archive, for use by other tools
+* B) "Flickr Browser":https://github.com/dsingleton/flickr-browser - A web-app to browse the photos and metadata of a Flickr Archive
+* C) Flickr Something-begining-with-C - A tool to view a Flickr Archive in a regular file system, where the photos themselves contain the metadata
